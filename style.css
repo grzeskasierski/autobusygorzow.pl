@@ -1,0 +1,135 @@
+body {
+    font-family: Arial,  sans-serif; /* Rodzina czcionek */
+    font-size: 20px; /* Rozmiar głównej czcionki w <p></p> tag  */
+    background-color: rgb(255, 255, 255); /* Kolor tła strony internetowej */
+    color: black; /* Kolor tła strony internetowej*/ 
+    animation: pojawienie 2s ease-out forwards
+}
+h1 {
+    color: #008a2e; /* Kolor nagłówka */
+    font-size: 70px; /* Rozmiar czcionki nagłówka */
+    font-family: sans-serif; /* Rodzina czcionek używana w nagłówku */
+    animation: pojawienie 2s ease-out forwards
+}
+iframe {
+    animation: pojawienie 2s ease-out forwards
+}
+@keyframes pojawienie {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+.tekst {
+    width: 50%;
+    margin-left: 3%;
+    line-height: 1.5;
+    font-size: 20px;
+    color: black;
+}
+/* UKRYCIE CHECKBOXA */
+#menuToggle {
+    display: none;
+}
+
+/* MENU */
+#menuContainer {
+    position: fixed;
+    inset: 0;
+    transform: translateX(100%);
+    opacity: 0;
+    visibility: hidden;
+
+    transition:
+        transform 0.5s ease,
+        opacity 0.5s ease,
+        visibility 0.5s;
+
+    z-index: 20;
+}
+
+/* OTWIERANIE MENU */
+#menuToggle:checked ~ #menuContainer {
+    transform: translateX(0);
+    opacity: 1;
+    visibility: visible;
+}
+
+/* X */
+#closeBtn {
+    color: rgb(0, 0, 0);
+    font-family: sans-serif;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 999;
+}
+
+/* LINKI */
+#menuLinks {
+    position: absolute;
+    top: 20%;
+    left: 75%;
+
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+
+    z-index: 25;
+}
+
+#menuLinks a {
+    color: black;
+    font-size: 40px;
+    text-decoration: none;
+}
+#menuBtn {
+    z-index: 10;
+}
+
+#menuContainer {
+    z-index: 20;
+}
+/* Ukrywanie przycisku MENU po otwarciu */
+#menuToggle:checked ~ #menuBtn {
+    display: none;
+}
+#menuLinks a {
+    color: black;
+    text-decoration: none;
+    font-size: 40px;
+    transition: color 0.3s ease;
+}
+
+#menuLinks a:hover {
+    color: rgba(0, 0, 0, 0.512);
+}
+
+.post {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    background-color: rgb(45, 232, 101);
+    border: 2px solid black;
+    border-radius: 12px;
+    padding: 12px;
+    margin: 15px;
+}
+
+.post img {
+    width: 180px;
+    max-width: 35%;
+    height: auto;
+    border-radius: 5px;
+}
+
+.post-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.post-content h2 {
+    margin-top: 0;
+}

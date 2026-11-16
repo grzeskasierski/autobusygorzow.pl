@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Autobusy Gorzów - Forum</title>
+<style>
+body {
+    background: rgba(255, 255, 255, 0);
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    margin: 20px;
+    color: black;
+}
+header, .okno, .post {
+    background: #20df60;
+    border: 2px solid black;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+header, .okno, .post {
+    background: #20df60;
+    border: 2px solid black;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+button {
+    background: #20df60;
+    border: 2px solid black;
+    border-radius: 7px;
+    padding: 9px 14px;
+    margin: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    color: white;
+}
+button:hover { background: #12b94c; }
+input, textarea, select {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 10px;
+    margin: 7px 0;
+    border: 1px solid black;
+    border-radius: 5px;
+    font-family: inherit;
+    background: transparent;
+}
+textarea { min-height: 100px; }
+.hidden { display: none; }
+.tematy {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.temat { cursor: pointer; margin: 0; }
+.aktywny { background: #12a844; }
+.data { font-size: 13px; }
+.wyszukiwarka { max-width: 650px; }
+.polubienie { margin-top: 8px; }
+.polubienie.polubione { background: #12a844; }
+
+.odpowiedzi {
+    margin: 12px 0 0 28px;
+    padding-left: 16px;
+    border-left: 4px solid black;
+}
+.odpowiedz-formularz {
+    margin-top: 12px;
+    padding: 12px;
+    border: 2px dashed black;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.25);
+}
+.odpowiedz-formularz input,
+.odpowiedz-formularz textarea {
+    background: transparent;
+}
+.przycisk-zwin {
+    margin-top: 8px;
+}
+@media (max-width: 600px) {
+    .odpowiedzi {
+        margin-left: 10px;
+        padding-left: 8px;
+    }
+}
+html, body {
+    background: transparent !important;
+}
+
+</style>
+</head>
+<body>
+
+<header>
+    <h1>autobusygorzow.pl/forum</h1>
+    <h3>Witamy na forum!</h3>
+</header>
+
+<h2 style="color: #20df60;">Tematy forum</h2>
+<div class="tematy" id="tematy"></div>
+
+<br>
+<button onclick="pokazDodawanie()">+ Dodaj post</button>
+<button onclick="pokazLogowanie()">Jestem moderatorem</button>
+
+<div class="okno hidden" id="dodawanie">
+    <h2>Dodaj nowy post</h2>
+    <input id="tytul" placeholder="Tytuł postu">
+    <input id="autor" placeholder="Twój pseudonim">
+    <select id="wybranyTemat"></select>
+    <textarea id="tresc" placeholder="Treść postu"></textarea>
+    <button onclick="dodajPost()">Opublikuj</button>
+    <button onclick="ukryj('dodawanie')">Anuluj</button>
+</div>
+
+<div class="okno hidden" id="logowanie">
+    <h2>Panel moderatora</h2>
+    <input id="modLogin" placeholder="Login moderatora">
+    <input id="modHaslo" type="password" placeholder="Hasło">
+    <button onclick="zalogujModeratora()">Zaloguj</button>
+    <button onclick="ukryj('logowanie')">Anuluj</button>
+    <p id="blad"></p>
+</div>
+
+<div class="okno hidden" id="panel">
+    <h2>Panel moderatora</h2>
+    <p>Zalogowano jako moderator.</p>
+    <button onclick="wylogujModeratora()">Wyloguj moderatora</button>
+</div>
+
+<h2 id="naglowekPostow" style="color: #20df60;">Wszystkie posty</h2>
+
+<input class="wyszukiwarka" id="szukajPostow"
+       type="search"
+       placeholder="🔎 Szukaj po tytule, autorze lub treści..."
+       oninput="rysujPosty()">
+
+<div id="posty"></div>
+
+<script>
+
+// MODERATORZY
+
+const MODERATORZY = [
+    { 
+        login: "GrzesieK",
+        haslo: "admin#01"
+    },
+    {
+        login: "WiktOgron",
+        haslo: "moderator#01"
+    }
+];
+
+// TEMATY
+
+const TEMATY = [
+    "Wszystkie",
+    "Komunikacja miejska",
+    "Autobusy",
+    "Rozkłady jazdy",
+    "Zdjęcia i filmy",
+    "Dyskusje"
+];
+
+let aktywnyTemat = "Wszystkie";
+let moderator = false;
+let otwartyFormularzOdpowiedzi = null;
+let zwinięteOdpowiedzi = {};
+
+// ZAPIS I ODCZYT POSTÓW
+
+function odczytajPosty() {
+    try {
+        const zapis = localStorage.getItem("forumPosty");
+        const dane = zapis ? JSON.parse(zapis) : [];
+        return Array.isArray(dane) ? dane : [];
+    } catch (error) {
+        return [];
+    }
+}
+
+let posty = odczytajPosty();
+
+function zapisz() {
+    try {
+        localStorage.setItem("forumPosty", JSON.stringify(posty));
+    } catch (error) {
+        alert("Nie udało się zapisać postów!");
+    }
+}
+
+// POLUBIENIA
+
+function odczytajPolubienia() {
+    try {
+        return JSON.parse(
+            localStorage.getItem("forumPolubienia") || "{}"
+        );
+    } catch (error) {
+        return {};
+    }
+}
+
+let polubienia = odczytajPolubienia();
+
+function zapiszPolubienia() {
+    localStorage.setItem(
+        "forumPolubienia",
+        JSON.stringify(polubienia)
+    );
+}
+
+function zmienPolubienie(id) {
+    const klucz = String(id);
+
+    if (!polubienia[klucz]) {
+        polubienia[klucz] = {
+            liczba: 0,
+            polubione: false
+        };
+    }
+
+    if (polubienia[klucz].polubione) {
+        polubienia[klucz].liczba =
+            Math.max(0, polubienia[klucz].liczba - 1);
+
+        polubienia[klucz].polubione = false;
+    } else {
+        polubienia[klucz].liczba++;
+        polubienia[klucz].polubione = true;
+    }
+
+    zapiszPolubienia();
+    rysujPosty();
+}
+
+// OKNA
+
+function ukryj(id) {
+    document.getElementById(id).classList.add("hidden");
+}
+
+function pokazDodawanie() {
+    pokaz("dodawanie");
+}
+
+function pokazLogowanie() {
+    pokaz("logowanie");
+    document.getElementById("blad").textContent = "";
+}
+
+function pokaz(id) {
+    document.getElementById(id).classList.remove("hidden");
+}
+
+// TEMATY
+
+function rysujTematy() {
+    const kontener = document.getElementById("tematy");
+    const select = document.getElementById("wybranyTemat");
+
+    kontener.innerHTML = "";
+    select.innerHTML = "";
+
+    TEMATY.slice(1).forEach(temat => {
+        const opcja = document.createElement("option");
+        opcja.value = temat;
+        opcja.textContent = temat;
+        select.appendChild(opcja);
+    });
+
+    TEMATY.forEach(temat => {
+        const przycisk = document.createElement("button");
+
+        przycisk.textContent = temat;
+        przycisk.className = "temat";
+
+        if (aktywnyTemat === temat) {
+            przycisk.classList.add("aktywny");
+        }
+
+        przycisk.onclick = () => {
+            aktywnyTemat = temat;
+            rysujTematy();
+            rysujPosty();
+        };
+
+        kontener.appendChild(przycisk);
+    });
+}
+
+// DODAWANIE POSTÓW
+
+function dodajPost() {
+    const tytul = document.getElementById("tytul").value.trim();
+    const autor = document.getElementById("autor").value.trim();
+    const temat = document.getElementById("wybranyTemat").value;
+    const tresc = document.getElementById("tresc").value.trim();
+
+    if (!tytul || !autor || !tresc) {
+        alert("Wypełnij wszystkie pola!");
+        return;
+    }
+
+    posty.unshift({
+        id: Date.now(),
+        tytul: tytul,
+        autor: autor,
+        temat: temat,
+        tresc: tresc,
+        data: new Date().toLocaleString("pl-PL")
+    });
+
+    zapisz();
+
+    document.getElementById("tytul").value = "";
+    document.getElementById("autor").value = "";
+    document.getElementById("tresc").value = "";
+
+    ukryj("dodawanie");
+    rysujPosty();
+}
+
+// ODPOWIEDZI
+
+function pokazFormularzOdpowiedzi(id) {
+    otwartyFormularzOdpowiedzi = String(id);
+    rysujPosty();
+}
+
+function anulujOdpowiedz() {
+    otwartyFormularzOdpowiedzi = null;
+    rysujPosty();
+}
+
+function dodajOdpowiedz(id) {
+    const autorPole =
+        document.getElementById("autorOdpowiedzi-" + id);
+
+    const trescPole =
+        document.getElementById("trescOdpowiedzi-" + id);
+
+    const autor = autorPole ? autorPole.value.trim() : "";
+    const tresc = trescPole ? trescPole.value.trim() : "";
+
+    if (!autor || !tresc) {
+        alert("Wpisz pseudonim i treść odpowiedzi!");
+        return;
+    }
+
+    posty.push({
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        parentId: id,
+        tytul: "Odpowiedź",
+        autor: autor,
+        temat: (
+            posty.find(p => String(p.id) === String(id)) || {}
+        ).temat || "Dyskusje",
+        tresc: tresc,
+        data: new Date().toLocaleString("pl-PL")
+    });
+
+    zapisz();
+
+    otwartyFormularzOdpowiedzi = null;
+    zwinięteOdpowiedzi[String(id)] = false;
+
+    rysujPosty();
+}
+
+function przelaczOdpowiedzi(id) {
+    const klucz = String(id);
+
+    zwinięteOdpowiedzi[klucz] =
+        !zwinięteOdpowiedzi[klucz];
+
+    rysujPosty();
+}
+
+// LOGOWANIE MODERATORA
+
+function zalogujModeratora() {
+    const login =
+        document.getElementById("modLogin").value.trim();
+
+    const haslo =
+        document.getElementById("modHaslo").value;
+
+    const znaleziony = MODERATORZY.find(m =>
+        m.login.toLowerCase() === login.toLowerCase() &&
+        m.haslo === haslo
+    );
+
+    if (!znaleziony) {
+        document.getElementById("blad").textContent =
+            "Nieprawidłowy login lub hasło!";
+        return;
+    }
+
+    moderator = true;
+
+    document.getElementById("modLogin").value = "";
+    document.getElementById("modHaslo").value = "";
+    document.getElementById("blad").textContent = "";
+
+    ukryj("logowanie");
+    pokaz("panel");
+
+    rysujPosty();
+}
+
+function wylogujModeratora() {
+    moderator = false;
+    ukryj("panel");
+    rysujPosty();
+}
+
+// WYŚWIETLANIE POSTÓW I ODPOWIEDZI
+
+function rysujPosty() {
+    const kontener = document.getElementById("posty");
+    kontener.innerHTML = "";
+
+    document.getElementById("naglowekPostow").textContent =
+        aktywnyTemat === "Wszystkie"
+        ? "Wszystkie posty"
+        : aktywnyTemat;
+
+    const fraza = document.getElementById("szukajPostow")
+        .value.trim().toLocaleLowerCase("pl");
+
+    const pasujace = posty.filter(p => {
+        const tekst = [
+            p.tytul,
+            p.autor,
+            p.tresc,
+            p.temat
+        ].join(" ").toLocaleLowerCase("pl");
+
+        return tekst.includes(fraza);
+    });
+
+    // Znajdowanie całych wątków pasujących do wyszukiwania.
+
+    const widoczneId = new Set();
+
+    pasujace.forEach(p => {
+        if (
+            aktywnyTemat !== "Wszystkie" &&
+            p.temat !== aktywnyTemat
+        ) return;
+
+        let aktualny = p;
+
+        while (aktualny) {
+            widoczneId.add(String(aktualny.id));
+
+            aktualny = aktualny.parentId == null
+                ? null
+                : posty.find(
+                    x => String(x.id) === String(aktualny.parentId)
+                );
+        }
+    });
+
+    const glowne = posty.filter(p =>
+        p.parentId == null &&
+        (aktywnyTemat === "Wszystkie" ||
+         p.temat === aktywnyTemat) &&
+        (widoczneId.has(String(p.id)) ||
+         (!fraza && !widoczneId.size))
+    );
+
+    if (glowne.length === 0) {
+        kontener.textContent = fraza
+            ? "Nie znaleziono pasujących postów."
+            : "Brak postów w tym temacie.";
+
+        kontener.style.color = "#20df60";
+        return;
+    }
+
+    function rysujKarte(p, rodzic) {
+        const karta = document.createElement("div");
+        karta.className = "post";
+
+        const tytul = document.createElement("h2");
+        tytul.textContent =
+            p.parentId == null ? p.tytul : "↳ Odpowiedź";
+
+        const autor = document.createElement("p");
+        autor.textContent = "Autor: " + p.autor;
+
+        const temat = document.createElement("p");
+        temat.textContent = "Temat: " + p.temat;
+
+        const data = document.createElement("p");
+        data.className = "data";
+        data.textContent = p.data;
+
+        const tresc = document.createElement("p");
+        tresc.textContent = p.tresc;
+
+        karta.append(tytul, autor, temat, data, tresc);
+
+        // Przycisk polubienia.
+
+        const stan = polubienia[String(p.id)] || {
+            liczba: 0,
+            polubione: false
+        };
+
+        const like = document.createElement("button");
+
+        like.className =
+            "polubienie" +
+            (stan.polubione ? " polubione" : "");
+
+        like.textContent =
+            (stan.polubione ? "👍 Polubiono: " : "👍 Lubię to: ") +
+            stan.liczba;
+
+        like.onclick = () => zmienPolubienie(p.id);
+
+        karta.appendChild(like);
+
+        // Odpowiadanie.
+
+        const odpowiedz = document.createElement("button");
+        odpowiedz.textContent = "Odpowiedz";
+        odpowiedz.onclick = () =>
+            pokazFormularzOdpowiedzi(p.id);
+
+        karta.appendChild(odpowiedz);
+
+        // Lista odpowiedzi.
+
+        const dzieci = posty.filter(
+            x => String(x.parentId) === String(p.id)
+        );
+
+        if (dzieci.length > 0) {
+            const toggle = document.createElement("button");
+
+            const zwinięte =
+                !!zwinięteOdpowiedzi[String(p.id)];
+
+            toggle.className = "przycisk-zwin";
+
+            toggle.textContent = zwinięte
+                ? "Pokaż odpowiedzi (" + dzieci.length + ")"
+                : "Zwiń odpowiedzi (" + dzieci.length + ")";
+
+            toggle.onclick = () =>
+                przelaczOdpowiedzi(p.id);
+
+            karta.appendChild(toggle);
+        }
+
+        // Formularz odpowiedzi.
+
+        if (otwartyFormularzOdpowiedzi === String(p.id)) {
+            const formularz = document.createElement("div");
+            formularz.className = "odpowiedz-formularz";
+
+            const naglowek = document.createElement("h3");
+            naglowek.textContent = "Odpowiedz na post";
+
+            const autorInput = document.createElement("input");
+            autorInput.id = "autorOdpowiedzi-" + p.id;
+            autorInput.placeholder = "Twój pseudonim";
+
+            const trescInput = document.createElement("textarea");
+            trescInput.id = "trescOdpowiedzi-" + p.id;
+            trescInput.placeholder = "Treść odpowiedzi";
+
+            const wyslij = document.createElement("button");
+            wyslij.textContent = "Opublikuj odpowiedź";
+            wyslij.onclick = () => dodajOdpowiedz(p.id);
+
+            const anuluj = document.createElement("button");
+            anuluj.textContent = "Anuluj";
+            anuluj.onclick = anulujOdpowiedz;
+
+            formularz.append(
+                naglowek,
+                autorInput,
+                trescInput,
+                wyslij,
+                anuluj
+            );
+
+            karta.appendChild(formularz);
+        }
+
+        // Usuwanie przez moderatora.
+
+        if (moderator) {
+            const usun = document.createElement("button");
+
+            usun.textContent =
+                "Usuń " +
+                (p.parentId == null ? "post" : "odpowiedź");
+
+            usun.onclick = () => {
+                const doUsuniecia = new Set([String(p.id)]);
+                let zmiana = true;
+
+                while (zmiana) {
+                    zmiana = false;
+
+                    posty.forEach(x => {
+                        if (
+                            x.parentId != null &&
+                            doUsuniecia.has(String(x.parentId)) &&
+                            !doUsuniecia.has(String(x.id))
+                        ) {
+                            doUsuniecia.add(String(x.id));
+                            zmiana = true;
+                        }
+                    });
+                }
+
+                posty = posty.filter(
+                    x => !doUsuniecia.has(String(x.id))
+                );
+
+                zapisz();
+                rysujPosty();
+            };
+
+            karta.appendChild(usun);
+        }
+
+        if (rodzic) {
+            rodzic.appendChild(karta);
+        } else {
+            kontener.appendChild(karta);
+        }
+
+        // Wcięte odpowiedzi.
+
+        if (
+            dzieci.length > 0 &&
+            !zwinięteOdpowiedzi[String(p.id)]
+        ) {
+            const sekcja = document.createElement("div");
+            sekcja.className = "odpowiedzi";
+
+            karta.appendChild(sekcja);
+
+            dzieci.forEach(dziecko =>
+                rysujKarte(dziecko, sekcja)
+            );
+        }
+    }
+
+    glowne.forEach(p => rysujKarte(p, null));
+}
+
+// START FORUM
+
+rysujTematy();
+rysujPosty();
+
+</script>
+</body>
+</html>
